@@ -164,7 +164,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 			err = -ENOMEM;
 		path_put(&key.ek_path);
 	}
-	cache_flush();
+	cache_flush();	// try to clean all cleanable (e.g. expired) cache entry.
  out:
 	if (ek)
 		cache_put(&ek->h, cd);
@@ -270,6 +270,9 @@ static const struct cache_detail svc_expkey_cache_template = {
 	.flush		= expkey_flush,
 };
 
+/*
+ * Key format: <fsidtype, fsid, client>
+ */
 static int
 svc_expkey_hash(struct svc_expkey *item)
 {
@@ -894,7 +897,7 @@ svc_export_update(struct svc_export *new, struct svc_export *old)
 
 
 static struct svc_expkey *
-exp_find_key(struct cache_detail *cd, struct auth_domain *clp, int fsid_type,
+ exp_find_key(struct cache_detail *cd, struct auth_domain *clp, int fsid_type,
 	     u32 *fsidv, struct cache_req *reqp)
 {
 	struct svc_expkey key, *ek;

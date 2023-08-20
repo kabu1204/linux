@@ -3491,6 +3491,7 @@ struct simple_transaction_argresp {
 
 #define SIMPLE_TRANSACTION_LIMIT (PAGE_SIZE - sizeof(struct simple_transaction_argresp))
 
+// copy buf to a new zeroed page, return the page.
 char *simple_transaction_get(struct file *file, const char __user *buf,
 				size_t size);
 ssize_t simple_transaction_read(struct file *file, char __user *buf,

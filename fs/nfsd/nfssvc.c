@@ -634,6 +634,7 @@ bool i_am_nfsd(void)
 	return kthread_func(current) == nfsd;
 }
 
+// create nfsd service
 int nfsd_create_serv(struct net *net)
 {
 	int error;
@@ -641,6 +642,8 @@ int nfsd_create_serv(struct net *net)
 
 	WARN_ON(!mutex_is_locked(&nfsd_mutex));
 	if (nn->nfsd_serv) {
+		// if created, increase reference count,
+		// since multiple threads will use this service.
 		svc_get(nn->nfsd_serv);
 		return 0;
 	}
@@ -797,7 +800,7 @@ nfsd_svc(int nrservs, struct net *net, const struct cred *cred)
 	if (error)
 		goto out_destroy;
 	error = nn->nfsd_serv->sv_ops->svo_setup(nn->nfsd_serv,
-			NULL, nrservs);
+			NULL, nrservs);  // starting new threads executing svo_function (aka nfsd())
 	if (error)
 		goto out_shutdown;
 	/* We are holding a reference to nn->nfsd_serv which

@@ -61,6 +61,10 @@ struct nfs_fhbase_old {
  *   The values for this field are filesystem specific, exccept that
  *   filesystems must not use the values '0' or '0xff'. 'See enum fid_type'
  *   in include/linux/exportfs.h for currently registered values.
+ *
+ *      ---------------------------------------------------------------------------------------
+ * new: | fb_version(u8)==1 | auth_type(u8)==0 | fsid_type(u8) | fileid_type(u8) | fsid (u32) |
+ *      ---------------------------------------------------------------------------------------
  */
 struct nfs_fhbase_new {
 	union {

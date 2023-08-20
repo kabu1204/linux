@@ -122,7 +122,7 @@ struct nfsd_net {
 	u32 clientid_counter;
 	u32 clverifier_counter;
 
-	struct svc_serv *nfsd_serv;
+	struct svc_serv *nfsd_serv;	// SUN RPC service
 
 	wait_queue_head_t ntf_wq;
 	atomic_t ntf_refcnt;

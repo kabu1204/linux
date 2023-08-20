@@ -226,6 +226,8 @@ static inline void svc_putu32(struct kvec *iov, __be32 val)
 /*
  * The context of a single thread, including the request currently being
  * processed.
+ * The svc_rqst is bound with a kernel thread. The thread reuses this svc_rqst
+ * to receive new request. (svc_revc(rqst, timeout))
  */
 struct svc_rqst {
 	struct list_head	rq_all;		/* all threads list */
@@ -299,7 +301,7 @@ struct svc_rqst {
 	struct auth_domain *	rq_client;	/* RPC peer info */
 	struct auth_domain *	rq_gssclient;	/* "gss/"-style peer info */
 	struct svc_cacherep *	rq_cacherep;	/* cache info */
-	struct task_struct	*rq_task;	/* service thread */
+	struct task_struct	*rq_task;	/* service thread that processing this request */
 	spinlock_t		rq_lock;	/* per-request lock */
 	struct net		*rq_bc_net;	/* pointer to backchannel's
 						 * net namespace
@@ -415,7 +417,7 @@ struct svc_program {
 	int			(*pg_authenticate)(struct svc_rqst *);
 	__be32			(*pg_init_request)(struct svc_rqst *,
 						   const struct svc_program *,
-						   struct svc_process_info *);
+						   struct svc_process_info *);	// be called before dispatch the request to real processing method
 	int			(*pg_rpcbind_set)(struct net *net,
 						  const struct svc_program *,
 						  u32 version, int family,

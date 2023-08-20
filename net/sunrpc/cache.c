@@ -94,6 +94,13 @@ static void sunrpc_end_cache_remove_entry(struct cache_head *ch,
 	cache_put(ch, cd);
 }
 
+/*
+ * sunrpc_cache_add_entry will be called when we cannot find a cache entry with **key**
+ * in **detail**.
+ * So we use this **key** to initialize a new empty entry. We cannot insert **key** into
+ * cache directly, because it may be temporary created.
+ * user-defined operations detail->alloc() and detail->init() will be called.
+*/
 static struct cache_head *sunrpc_cache_add_entry(struct cache_detail *detail,
 						 struct cache_head *key,
 						 int hash)
@@ -262,6 +269,7 @@ static inline int cache_is_valid(struct cache_head *h)
 	}
 }
 
+// mark negative
 static int try_to_negate_entry(struct cache_detail *detail, struct cache_head *h)
 {
 	int rv;
@@ -781,7 +789,11 @@ static DEFINE_SPINLOCK(queue_lock);
 
 struct cache_queue {
 	struct list_head	list;
-	int			reader;	/* if 0, then request */
+	/*
+		0: this is a queue entry associated with a cache_request.
+		1: this is a helper queue entry associated with a cache_reader.
+	*/
+	int			reader;
 };
 struct cache_request {
 	struct cache_queue	q;
@@ -792,9 +804,15 @@ struct cache_request {
 };
 struct cache_reader {
 	struct cache_queue	q;
-	int			offset;	/* if non-0, we have a refcnt on next request */
+	/* if non-0, we have a refcnt on next request. */
+	/* (The request has been partially copied to user) */
+	int			offset;
 };
 
+/* 
+	the cache_request is called to serialize container_of(crq->item) to crq->buf.
+	@return request encoded length
+*/
 static int cache_request(struct cache_detail *detail,
 			       struct cache_request *crq)
 {
@@ -807,6 +825,9 @@ static int cache_request(struct cache_detail *detail,
 	return PAGE_SIZE - len;
 }
 
+/*
+	cache_read() is called when read() /proc/fs/rpc/<cachename>/channel
+*/
 static ssize_t cache_read(struct file *filp, char __user *buf, size_t count,
 			  loff_t *ppos, struct cache_detail *cd)
 {
@@ -826,6 +847,9 @@ static ssize_t cache_read(struct file *filp, char __user *buf, size_t count,
 	while (rp->q.list.next != &cd->queue &&
 	       list_entry(rp->q.list.next, struct cache_queue, list)
 	       ->reader) {
+		// Iterate through the request queue by moving current reader's queue entry, 
+		// find the first queue entry associated with a cache_request.
+		// cd->queue is dummy head of the list.
 		struct list_head *next = rp->q.list.next;
 		list_move(&rp->q.list, next);
 	}
@@ -842,6 +866,9 @@ static ssize_t cache_read(struct file *filp, char __user *buf, size_t count,
 	spin_unlock(&queue_lock);
 
 	if (rq->len == 0) {
+		/*
+			the cache request is not encoded, call cache_request() to encode.
+		*/
 		err = cache_request(cd, rq);
 		if (err < 0)
 			goto out;
@@ -851,7 +878,7 @@ static ssize_t cache_read(struct file *filp, char __user *buf, size_t count,
 	if (rp->offset == 0 && !test_bit(CACHE_PENDING, &rq->item->flags)) {
 		err = -EAGAIN;
 		spin_lock(&queue_lock);
-		list_move(&rp->q.list, &rq->q.list);
+		list_move(&rp->q.list, &rq->q.list);	// move the reader forward, skip this request entry
 		spin_unlock(&queue_lock);
 	} else {
 		if (rp->offset + count > rq->len)
@@ -871,10 +898,12 @@ static ssize_t cache_read(struct file *filp, char __user *buf, size_t count,
  out:
 	if (rp->offset == 0) {
 		/* need to release rq */
+		/* finish reading this request */
 		spin_lock(&queue_lock);
 		rq->readers--;
 		if (rq->readers == 0 &&
 		    !test_bit(CACHE_PENDING, &rq->item->flags)) {
+			// last reader, clean the entry
 			list_del(&rq->q.list);
 			spin_unlock(&queue_lock);
 			cache_put(rq->item, cd);
@@ -927,6 +956,10 @@ out:
 	return ret;
 }
 
+/* 
+ * cache_write is called when user write() /proc/fs/rpc/<cache_name>/channel
+ * It will call cd->cache_parse to decode and update the cache entry
+ */
 static ssize_t cache_write(struct file *filp, const char __user *buf,
 			   size_t count, loff_t *ppos,
 			   struct cache_detail *cd)

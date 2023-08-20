@@ -602,6 +602,7 @@ svc_release_buffer(struct svc_rqst *rqstp)
 			put_page(rqstp->rq_pages[i]);
 }
 
+// allocate a request, including buffer and scratch page
 struct svc_rqst *
 svc_rqst_alloc(struct svc_serv *serv, struct svc_pool *pool, int node)
 {
@@ -781,6 +782,8 @@ svc_signal_kthreads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
  *
  * Based on code that used to be in nfsd_svc() but tweaked
  * to be pool-aware.
+ *
+ * starting new threads executing svo_function
  */
 int
 svc_set_num_threads(struct svc_serv *serv, struct svc_pool *pool, int nrservs)
@@ -1229,6 +1232,7 @@ svc_generic_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	return 1;
 }
 
+// will be called before processing a request
 __be32
 svc_generic_init_request(struct svc_rqst *rqstp,
 		const struct svc_program *progp,

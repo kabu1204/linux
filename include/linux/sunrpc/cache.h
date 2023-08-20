@@ -75,6 +75,12 @@ struct cache_detail {
 	int			(*cache_upcall)(struct cache_detail *,
 						struct cache_head *);
 
+	/*
+		@bpp  buffer
+		@blen buffer size
+		@brief bpp should be moved forward over the encoded message, 
+		and *blen should be reduced to show how much free space remains.
+	*/
 	void			(*cache_request)(struct cache_detail *cd,
 						 struct cache_head *ch,
 						 char **bpp, int *blen);
@@ -108,6 +114,9 @@ struct cache_detail {
 	int			entries;
 
 	/* fields for communication over channel */
+	/*
+		for example, queue up cache_upcall requests.
+	*/
 	struct list_head	queue;
 
 	atomic_t		writers;		/* how many time is /channel open */

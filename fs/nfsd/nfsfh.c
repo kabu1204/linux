@@ -197,6 +197,7 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 		exp = rqst_exp_find(rqstp, fh->fh_fsid_type, fh->fh_fsid);
 		fid = (struct fid *)(fh->fh_fsid + len);
 	} else {
+		// old routines
 		__u32 tfh[2];
 		dev_t xdev;
 		ino_t xino;
@@ -254,6 +255,7 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 		error = nfserr_badhandle;
 
 	if (fh->fh_version != 1) {
+		// old routine
 		sfid.i32.ino = fh->ofh_ino;
 		sfid.i32.gen = fh->ofh_generation;
 		sfid.i32.parent_ino = fh->ofh_dirino;
